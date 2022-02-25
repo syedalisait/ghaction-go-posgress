@@ -1,4 +1,9 @@
-name: go build
+#TODO:
+  # Use golangci-lint to check for lint errors
+  # Use container image to run tests
+  # Check if build and test can be run in parallel with two jobs?
+
+name: Go Build and Test
 
 on:
   # push:
@@ -7,7 +12,7 @@ on:
     branches: [ master ]
 
 jobs:
-  # This is the job ID
+  # job build-and-test
   build-and-test:
     name: Build and Test
     # The machine we have chosen to run the job is "ubuntu-latest"
@@ -23,6 +28,7 @@ jobs:
           POSTGRES_PASSWORD: root
         ports:
           - 5432:5432
+        # Do health check to wait for postgres service to be ready
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -61,7 +67,7 @@ jobs:
           which migrate
 
       - name: migrateup
-        run: migrate -database "postgres://root:root@localhost:5432/db_test?sslmode=disable" -path ./migrations up
+        run: make migrateup
 
       - name: Git Configuration
         env:
