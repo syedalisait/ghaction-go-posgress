@@ -67,7 +67,7 @@ jobs:
           which migrate
 
       - name: migrateup
-        run: make migrateup
+        run: make migrate_test_up
 
       - name: Git Configuration
         env:
