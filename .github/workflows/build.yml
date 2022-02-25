@@ -61,7 +61,7 @@ jobs:
           which migrate
 
       - name: migrateup
-        run: migrate -url "postgres://root:root@localhost:5432/db_test?sslmode=disable" -path ./migrations up
+        run: migrate -database "postgres://root:root@localhost:5432/db_test?sslmode=disable" -path ./migrations up
 
       - name: Git Configuration
         env:
