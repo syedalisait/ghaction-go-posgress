@@ -7,11 +7,23 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
+  build-and-test:
+    name: Build and Test
     runs-on: ubuntu-latest
-    env:
-      GH_ACTION_TOKEN: "${{ secrets.GH_ACTION_TOKEN }}"
-      GOPRIVATE: "github.com/syedalisait/goprivaterepo"
+
+    services:
+      image: postgres14.2
+      env:
+        POSTGRES_USER=root
+        POSTGRES_PASSWORD=root
+      ports:
+        - 5432:5432
+      options: >-
+        --health-cmd pg_isready
+        --health-interval 10s
+        --health-timeout 5s
+        --health-retries 5
+
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v2
@@ -21,8 +33,15 @@ jobs:
         with:
           go-version: 1.17
 
-      - name: Prepare Global Git Configuration
+      - name: Git Configuration
+        env:
+          GH_ACTION_TOKEN: "${{ secrets.GH_ACTION_TOKEN }}"
         run: git config --global url.https://$GH_ACTION_TOKEN@github.com/.insteadOf https://github.com/
+
+      - name: Configure GOPRIVATE and GO111MODULE before build
+        run: |
+          go env -w GO111MODULE="on"
+          go env -w GOPRIVATE="github.com/syedalisait/goprivaterepo"
 
       - name: Build
         run: go build -v ./...
