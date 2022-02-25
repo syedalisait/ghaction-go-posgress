@@ -1,0 +1,86 @@
+#TODO:
+  # Use golangci-lint to check for lint errors
+  # Use container image to run tests
+  # Check if build and test can be run in parallel with two jobs?
+
+name: Go Build and Test
+
+on:
+  # push:
+  #   branches: [ development ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  # job build-and-test
+  build-and-test:
+    name: Build and Test
+    # The machine we have chosen to run the job is "ubuntu-latest"
+    runs-on: ubuntu-latest
+
+    # Initialize postgres as a service since we will be running tests
+    # This runs as a separate container inside "ubuntu-latest"
+    services:
+      postgres:
+        image: postgres:14.2
+        env:
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: root
+        ports:
+          - 5432:5432
+        # Do health check to wait for postgres service to be ready
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+#      - name: Set up Postgress using github actions
+#        uses: harmon758/postgresql-action@v1
+#        with:
+#          postgresql version: '14.2'
+#          postgresql password: 'root'
+#          postgresql user: 'root'
+
+      - name: Set up DB
+        env:
+          PGPASSWORD: root
+        run: |
+          psql -U root --host=localhost -c "CREATE USER dev WITH SUPERUSER;"
+          psql -U root --host=localhost -c "ALTER USER dev WITH PASSWORD 'cherry&Pi';"
+          psql -U root --host=localhost -c "CREATE DATABASE db_test OWNER dev ENCODING 'UTF-8' LC_COLLATE 'en_US.UTF-8' LC_CTYPE 'en_US.UTF-8' TEMPLATE template0;"
+
+      - name: Install Dependencies
+        # install golang-migrate
+        run: |
+          curl -L https://github.com/golang-migrate/migrate/releases/download/v4.15.1/migrate.linux-amd64.tar.gz | tar xvz
+          sudo mv migrate /usr/bin/migrate
+          which migrate
+
+      - name: migrateup
+        run: make migrate_test_up
+
+      - name: Git Configuration
+        env:
+          GH_ACTION_TOKEN: "${{ secrets.GH_ACTION_TOKEN }}"
+        run: git config --global url.https://$GH_ACTION_TOKEN@github.com/.insteadOf https://github.com/
+
+      - name: Configure GOPRIVATE and GO111MODULE before build
+        run: |
+          go env -w GO111MODULE="on"
+          go env -w GOPRIVATE="github.com/syedalisait/goprivaterepo"
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Test
+        run: go test -v ./...
